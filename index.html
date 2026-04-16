@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CUIR ELEGANTE - BUSINESS MANAGER</title>
+    <title>CUIR ELEANTE - BUSINESS MANAGER</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
         body{background:#f4f4f4;padding:20px;}
@@ -11,7 +11,6 @@
         h1,h2,h3{margin-bottom:15px;color:#222;}
         .section{margin:40px 0;}
 
-        /* LOGIN FORM */
         .login-box{max-width:400px;margin:50px auto;background:white;padding:40px;border-radius:12px;box-shadow:0 0 10px #0000001a;display:none;}
         .login-box input{width:100%;margin:10px 0;}
         .login-btn{background:#2563eb;color:white;width:100%;}
@@ -23,7 +22,7 @@
         .orange{background:#f97316;}
         .red{background:#ef4444;}
         .purple{background:#a855f7;}
-        .teal:#0d9488;}
+        .teal{background:#0d9488;}
         .pink{background:#ec4899;}
         .card h4{font-size:14px;opacity:0.9;}
         .card p{font-size:20px;font-weight:bold;margin-top:5px;}
@@ -58,20 +57,20 @@
 </head>
 <body>
 
-<!-- LOGIN SCREEN -->
+<!-- LOGIN -->
 <div class="login-box" id="loginScreen">
-    <h2>🔐 LOGIN - CUIR ELEGANTE</h2>
+    <h2>🔐 LOGIN - CUIR ELEANTE</h2>
     <input type="text" id="username" placeholder="Username" value="cuir elegante">
     <input type="password" id="password" placeholder="Password" value="cuir elegante 2025">
     <button onclick="login()" class="login-btn">Login</button>
     <p id="loginErr" style="color:red;margin-top:10px;"></p>
 </div>
 
-<!-- MAIN SYSTEM (HIDDEN TILL LOGIN) -->
+<!-- MAIN SYSTEM -->
 <div id="mainSystem" style="display:none;">
     <div class="container">
         <button onclick="logout()" class="btn-logout">Logout</button>
-        <h1>🏪 CUIR ELEGANTE - ALL-IN-ONE BUSINESS SYSTEM</h1>
+        <h1>🏪 CUIR ELEANTE - ALL-IN-ONE BUSINESS SYSTEM</h1>
         <div id="lowStockAlert" class="notification">⚠️ LOW STOCK WARNING!</div>
 
         <!-- IMPORT PRODUCTS -->
@@ -83,12 +82,12 @@
             <p id="prodMsg"></p>
         </div>
 
-        <!-- IMPORT ORDERS -->
+        <!-- IMPORT ORDERS / SALES -->
         <div class="import-box">
-            <h2>📥 IMPORT EXCEL ORDERS</h2>
+            <h2>📥 IMPORT SALES ORDERS (AUTO UPDATE DASHBOARD)</h2>
             <p>Order ID | Date | Type | Status | Item Name | Price | Qty | Warranty | Zone | Total | Delivery Charge | Discount % | VAT % | Grand Total | Paid | Due | Customer Name | Number | Email | Address | Note | Fields | Variants</p>
             <input type="file" id="orderExcel">
-            <button onclick="importOrderExcel()" class="btn-import">Import Orders</button>
+            <button onclick="importOrderExcel()" class="btn-import">Import Sales & Auto Update</button>
             <p id="orderMsg"></p>
         </div>
 
@@ -107,7 +106,7 @@
         <input type="month" id="monthFilter">
         <button onclick="updateAll()" class="btn-add">Apply Month</button>
 
-        <!-- ORDERS & INVOICE -->
+        <!-- CREATE ORDER -->
         <div class="section">
             <h2>🛒 CREATE NEW ORDER (AUTO DEDUCT STOCK)</h2>
             <select id="orderProduct"></select>
@@ -160,14 +159,14 @@
             </table>
         </div>
 
-        <!-- EXPORT BUTTONS -->
+        <!-- EXPORT -->
         <button onclick="exportStock()" class="btn-export">📤 EXPORT STOCK DATA</button>
         <button onclick="exportSales()" class="btn-export">📤 EXPORT SALES DATA (with TOTALS)</button>
     </div>
 </div>
 
 <script>
-// LOGIN SYSTEM
+// LOGIN
 const USERNAME = "cuir elegante";
 const PASSWORD = "cuir elegante 2025";
 
@@ -213,12 +212,12 @@ function importProductExcel() {
         });
         localStorage.setItem("bizProducts",JSON.stringify(products));
         updateAll();
-        document.getElementById("prodMsg").innerText="✅ Products Imported!";
+        document.getElementById("prodMsg").innerText="✅ Products Imported! Dashboard Updated.";
     };
     r.readAsArrayBuffer(f);
 }
 
-// IMPORT ORDERS
+// IMPORT ORDERS + AUTO UPDATE SALES + REVENUE + STOCK
 function importOrderExcel() {
     const f=document.getElementById("orderExcel").files[0];
     if(!f){document.getElementById("orderMsg").innerText="Select file!";return;}
@@ -226,9 +225,24 @@ function importOrderExcel() {
     r.onload=e=>{
         const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
         orders=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        
+        // AUTO APPLY SALES FROM EXCEL TO PRODUCTS (UPDATES STOCK + SOLD + REVENUE)
+        orders.forEach(o=>{
+            const itemName = o["Item Name"] || o["item name"] || o["Product"] || o["product"];
+            const qty = parseInt(o["Qty"] || o["qty"] || o["Item Quantity"] || 1);
+            if(!itemName) return;
+
+            const prod = products.find(p=>p.name.toLowerCase() === itemName.toLowerCase());
+            if(prod && prod.stock >= qty){
+                prod.stock -= qty;
+                prod.sold += qty;
+            }
+        });
+
         localStorage.setItem("bizOrders",JSON.stringify(orders));
+        localStorage.setItem("bizProducts",JSON.stringify(products));
         updateAll();
-        document.getElementById("orderMsg").innerText="✅ Orders Imported!";
+        document.getElementById("orderMsg").innerText="✅ SALES IMPORTED! DASHBOARD AUTO UPDATED ✅";
     };
     r.readAsArrayBuffer(f);
 }
@@ -242,7 +256,7 @@ function exportStock() {
     a.download="CUIR_ELEANTE_STOCK.csv";a.click();
 }
 
-// EXPORT SALES + TOTALS
+// EXPORT SALES WITH TOTALS
 function exportSales() {
     let csv="Product Name,Sold Qty,Total Cost,Total Revenue,Total Profit\n";
     let totalCost=0,totalRev=0,totalProfit=0;
