@@ -73,19 +73,19 @@
         <h1>🏪 CUIR ELEANTE - ALL-IN-ONE BUSINESS SYSTEM</h1>
         <div id="lowStockAlert" class="notification">⚠️ LOW STOCK WARNING!</div>
 
-        <!-- IMPORT PRODUCTS -->
+        <!-- 🌟 YOUR PRODUCT IMPORT FORMAT: Product Name | SKU | Price | Available Quantity -->
         <div class="import-box" style="border-color:green;background:#f0fff4;">
             <h2>📦 BULK IMPORT PRODUCTS + STOCK</h2>
-            <p>Columns: Product Name, Cost Price, Selling Price, Current Stock, Ads Cost, Shipping Cost, Packaging Cost</p>
+            <p>Columns: Product Name | SKU/ Product Code | Price | Available Quantity</p>
             <input type="file" id="productExcel">
             <button onclick="importProductExcel()" class="btn-add">Import Products</button>
             <p id="prodMsg"></p>
         </div>
 
-        <!-- IMPORT ORDERS / SALES -->
+        <!-- 🌟 YOUR SALES IMPORT FORMAT (FULL EXACT) -->
         <div class="import-box">
             <h2>📥 IMPORT SALES ORDERS (AUTO UPDATE DASHBOARD)</h2>
-            <p>Order ID | Date | Type | Status | Item Name | Price | Qty | Warranty | Zone | Total | Delivery Charge | Discount % | VAT % | Grand Total | Paid | Due | Customer Name | Number | Email | Address | Note | Fields | Variants</p>
+            <p>Order ID | Date | Order Type | Order Status | Item Name | Item Price | Item Quantity | Item Warranty | Delivery Zone | Total Amount | Delivery Charge | Discount Amount(Percentage) | Vat Amount (Percentage) | Grand Total | Paid Amount | Due Amount | Customer Name | Customer Number | Customer Email | Customer Address | Customer Note | Custom Fields | Variants</p>
             <input type="file" id="orderExcel">
             <button onclick="importOrderExcel()" class="btn-import">Import Sales & Auto Update</button>
             <p id="orderMsg"></p>
@@ -139,9 +139,10 @@
             <h2>📦 Add Product + Image</h2>
             <input type="hidden" id="editId">
             <input type="text" id="pName" placeholder="Product Name">
+            <input type="text" id="pSku" placeholder="SKU / Product Code">
             <input type="number" id="pCost" placeholder="Cost Price">
             <input type="number" id="pSell" placeholder="Selling Price">
-            <input type="number" id="pStock" placeholder="Stock">
+            <input type="number" id="pStock" placeholder="Available Quantity">
             <input type="file" id="pImage" onchange="previewImage(event)">
             <img id="imagePreview" class="img-preview" style="display:none;">
             <input type="number" id="pAds" placeholder="Ads Cost" value="0">
@@ -154,7 +155,7 @@
         <div class="section">
             <h2>📋 PRODUCT STOCK</h2>
             <table>
-                <thead><tr><th>Image</th><th>Product</th><th>Stock</th><th>Sold</th><th>Profit</th><th>Action</th></tr></thead>
+                <thead><tr><th>Image</th><th>SKU</th><th>Product</th><th>Stock</th><th>Sold</th><th>Profit</th><th>Action</th></tr></thead>
                 <tbody id="productTable"></tbody>
             </table>
         </div>
@@ -195,19 +196,33 @@ let lowStockLimit = 10;
 
 function previewImage(e){const r=new FileReader();r.onload=()=>{const i=document.getElementById("imagePreview");i.src=r.result;i.style.display="inline-block";};r.readAsDataURL(e.target.files[0]);}
 
-// IMPORT PRODUCTS
+// =============================================================================
+// 🌟 IMPORT PRODUCTS (YOUR FORMAT: Product Name | SKU | Price | Available Quantity)
+// =============================================================================
 function importProductExcel() {
     const f = document.getElementById("productExcel").files[0];
     if(!f){document.getElementById("prodMsg").innerText="Select file!";return;}
     const r=new FileReader();
     r.onload=e=>{
         const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
-        const data=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:["name","cost","sell","stock","ads","ship","pack"]});
-        data.shift();
+        const data=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{
+            header:["name","sku","sell","stock"]
+        });
+        data.shift(); // remove header row
         data.forEach(row=>{
-            if(!row.name)return;
-            const p={name:row.name+"",cost:+row.cost||0,sell:+row.sell||0,stock:+row.stock||0,sold:0,image:"",ads:+row.ads||0,ship:+row.ship||0,pack:+row.pack||0,date:new Date().toISOString()};
-            const i=products.findIndex(x=>x.name.toLowerCase()===p.name.toLowerCase());
+            if(!row.name) return;
+            const p={
+                name:row.name+"",
+                sku:row.sku || "-",
+                cost:0,
+                sell:+row.sell||0,
+                stock:+row.stock||0,
+                sold:0,
+                image:"",
+                ads:0,ship:0,pack:0,
+                date:new Date().toISOString()
+            };
+            const i=products.findIndex(x=>x.name.toLowerCase()===p.name.toLowerCase() || x.sku === p.sku);
             i>-1?products[i]=p:products.push(p);
         });
         localStorage.setItem("bizProducts",JSON.stringify(products));
@@ -217,7 +232,9 @@ function importProductExcel() {
     r.readAsArrayBuffer(f);
 }
 
-// IMPORT ORDERS + AUTO UPDATE SALES + REVENUE + STOCK
+// =============================================================================
+// 🌟 IMPORT SALES ORDERS (YOUR FULL EXACT COLUMN FORMAT)
+// =============================================================================
 function importOrderExcel() {
     const f=document.getElementById("orderExcel").files[0];
     if(!f){document.getElementById("orderMsg").innerText="Select file!";return;}
@@ -226,10 +243,10 @@ function importOrderExcel() {
         const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
         orders=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
         
-        // AUTO APPLY SALES FROM EXCEL TO PRODUCTS (UPDATES STOCK + SOLD + REVENUE)
+        // AUTO UPDATE STOCK + SOLD + REVENUE
         orders.forEach(o=>{
-            const itemName = o["Item Name"] || o["item name"] || o["Product"] || o["product"];
-            const qty = parseInt(o["Qty"] || o["qty"] || o["Item Quantity"] || 1);
+            const itemName = o["Item Name"] || "";
+            const qty = parseInt(o["Item Quantity"] || 1);
             if(!itemName) return;
 
             const prod = products.find(p=>p.name.toLowerCase() === itemName.toLowerCase());
@@ -249,8 +266,8 @@ function importOrderExcel() {
 
 // EXPORT STOCK
 function exportStock() {
-    let csv="Product Name,Cost Price,Selling Price,Current Stock,Sold,Ads Cost,Shipping,Packaging\n";
-    products.forEach(p=>{csv+=`${p.name},${p.cost},${p.sell},${p.stock},${p.sold},${p.ads},${p.ship},${p.pack}\n`;});
+    let csv="Product Name,SKU,Price,Available Quantity,Sold\n";
+    products.forEach(p=>{csv+=`${p.name},${p.sku},${p.sell},${p.stock},${p.sold}\n`;});
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
     a.download="CUIR_ELEANTE_STOCK.csv";a.click();
@@ -297,6 +314,7 @@ function saveProduct(){
     const id=document.getElementById("editId").value;
     const p={
         name:document.getElementById("pName").value,
+        sku:document.getElementById("pSku").value,
         cost:+document.getElementById("pCost").value||0,
         sell:+document.getElementById("pSell").value||0,
         stock:+document.getElementById("pStock").value||0,
@@ -316,7 +334,7 @@ function renderProducts(){
     products.forEach((p,i)=>{
         const prof=(p.sell-p.cost-p.ads-p.ship-p.pack)*p.sold;
         const low=p.stock<lowStockLimit?"low-stock":"";
-        t.innerHTML+=`<tr class="${low}"><td><img src="${p.image}" class="img-preview"></td><td>${p.name}</td><td>${p.stock}</td><td>${p.sold}</td><td>$${prof.toFixed(2)}</td><td><button class="btn-edit" onclick="editProduct(${i})">Edit</button></td></tr>`;
+        t.innerHTML+=`<tr class="${low}"><td><img src="${p.image}" class="img-preview"></td><td>${p.sku}</td><td>${p.name}</td><td>${p.stock}</td><td>${p.sold}</td><td>$${prof.toFixed(2)}</td><td><button class="btn-edit" onclick="editProduct(${i})">Edit</button></td></tr>`;
     });
     checkLowStock();
 }
@@ -325,6 +343,7 @@ function editProduct(i){
     const p=products[i];
     document.getElementById("editId").value=i;
     document.getElementById("pName").value=p.name;
+    document.getElementById("pSku").value=p.sku;
     document.getElementById("pCost").value=p.cost;
     document.getElementById("pSell").value=p.sell;
     document.getElementById("pStock").value=p.stock;
